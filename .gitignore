@@ -7,19 +7,16 @@ env/
 __pycache__/
 *.py[cod]
 
-# VS Code settings
+# Environment variables
+.env
+
+# Editor settings
 .vscode/
 
-# YOLO generated outputs
+# ML / YOLO artifacts
 runs/
-
-# Model weights
 *.pt
 *.pth
 
-# Python
-__pycache__/
-*.pyc
-
-# Environment variables
-.env
+# Datasets
+training/football-players-detection-1/
