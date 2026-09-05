@@ -95,9 +95,14 @@ football-players-detection-1/
 
 ### 3.1 Qualitative Comparison
 
-| Input | Baseline (`yolov8x`) | Fine-tuned (`yolov5x`) |
-|---|---|---|
-| ![Original](assets/original_video.png) | ![Baseline](assets/video_after_normal_yolo.png) | ![Fine-tuned](assets/video_after_finetuning.png) |
+**Input**
+![Original](assets/original_video.png)
+
+**Baseline (`yolov8x`)**
+![Baseline](assets/video_after_normal_yolo.png)
+
+**Fine-tuned (`yolov5x`)**
+![Fine-tuned](assets/video_after_finetuning.png)
 
 The baseline model detects players consistently but rarely detects the ball. The fine-tuned model, trained on football-specific annotations for all four classes, shows visibly more consistent ball detection in the same footage.
 
