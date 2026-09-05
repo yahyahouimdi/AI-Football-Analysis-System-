@@ -110,4 +110,4 @@ The coordinates are normalized to the image width and height.
 
 ## Next Step: Inference
 
-After training, use the saved weights with the project's inference workflow and put it in models folder . The existing `yolo_infernce.py` currently loads a YOLO model and processes `input_video/video.mp4`; update it to load the trained weights when you are ready to compare the football-specific model with the original detector.
+After training, use the saved weights with the project's inference workflow and put it in models folder . The existing `yolo_infernce_before_training` currently loads a YOLO model and processes `input_video/video.mp4`; use the `yolo_infernce_after_training`  to load the trained weights when you are ready to compare the football-specific model with the original detector.
