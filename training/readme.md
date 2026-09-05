@@ -1,0 +1,1 @@
+you can run the notebook local if you have a perform pc but if you have not you can just upload this on collab 
