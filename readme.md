@@ -1,218 +1,210 @@
 # Football Match Analyser
 
-An experimental football video analysis project that uses Python and Ultralytics YOLO to detect football-related objects in match footage. The project compares a general-purpose pretrained detector with a model fine-tuned on a football-specific dataset, with a particular focus on improving ball detection.
+**An experimental computer vision pipeline for automated football match analysis, using YOLO-based object detection fine-tuned on football-specific imagery.**
 
-The current implementation is a video object-detection pipeline. It reads a match video, runs YOLO inference frame by frame, and saves an annotated output video. Player tracking, tactical analysis, statistics extraction, and a complete application entry point are planned extensions rather than implemented features in the current repository.
+---
 
-## Project Motivation
+## Abstract
 
-The initial detector was able to identify people in match footage, but it detected the ball inconsistently. The project therefore uses a football-specific dataset to fine-tune a YOLO model for the following four classes:
+General-purpose object detectors are reasonably effective at locating people in unconstrained video, but they perform poorly on small, fast-moving objects such as a football in broadcast-style match footage. This project investigates whether **domain-specific fine-tuning** of a YOLO detector can close that gap. A baseline `YOLOv8x` model is compared against a `YOLOv5x` detector fine-tuned on an annotated football dataset covering four object classes: `ball`, `goalkeeper`, `player`, and `referee`. The current repository implements the detection pipeline and a qualitative before/after comparison; it is designed as a foundation for a full match-analysis system (tracking, tactical statistics, and possession analysis) rather than a finished product.
+
+---
+
+## 1. Motivation
+
+Football match analysis is a natural computer vision application: broadcast footage is abundant, object classes are well-defined, and downstream applications (tactical analysis, automated highlights, performance analytics) have clear practical value. However, an initial trial with an off-the-shelf pretrained detector revealed a specific weakness — **players were detected reliably, but the ball was detected inconsistently or missed entirely**. This is expected: the ball occupies a very small number of pixels relative to the frame, is frequently occluded, and moves quickly enough to introduce motion blur.
+
+This motivated a targeted experiment: fine-tune a YOLO model on football-specific annotations and evaluate whether ball detection improves, without materially degrading detection of the other classes.
+
+### Object Classes
 
 | Class | Description |
-| --- | --- |
-| `ball` | The football. |
-| `goalkeeper` | A goalkeeper. |
+|---|---|
+| `ball` | The football. Smallest class by pixel area; most sensitive to resolution, angle, and occlusion. |
+| `goalkeeper` | A goalkeeper, visually distinct from outfield players (kit, positioning). |
 | `player` | An outfield player. |
 | `referee` | A match official. |
 
-The ball is considerably smaller than the other classes, so its detection is more sensitive to image quality, camera angle, occlusion, and annotation coverage.
+---
 
-## Detection Pipeline
+## 2. Method
 
-```text
-Match video
-	|
-	v
-YOLO model
-	|
-	+--> Detected bounding boxes and class predictions
-	|
-	v
-Annotated output video saved by Ultralytics
-```
+### 2.1 Detection Pipeline
 
-The repository includes two inference scripts:
-
-- `yolo_infernce_before_training.py` loads the general `yolov8x` model.
-- `yolo_infernce_after_training.py` loads the fine-tuned weights from `models/best.pt`.
-
-Both scripts use `input_video/video.mp4` as their input and pass `save=True` to Ultralytics, which writes the prediction output under an automatically generated `runs/detect/predict*` directory.
-
-## Before and After Comparison
-
-The following images document the project workflow and the visual difference between the baseline and fine-tuned detectors.
-
-### Original Input
-
-The input is football match footage sourced from the DFL Bundesliga video dataset on Kaggle.
-
-![Original football match video](assets/original_video.png)
-
-Source: [DFL Bundesliga football videos on Kaggle](https://www.kaggle.com/datasets/saberghaderi/-dfl-bundesliga-460-mp4-videos-in-30sec-csv).
-
-### Baseline YOLO Inference
-
-The general-purpose YOLO model detects people reasonably well, but ball detections are rare and inconsistent in the match footage.
-
-![Baseline YOLO detection result](assets/video_after_normal_yolo.png)
-
-### Fine-Tuned YOLO Inference
-
-The fine-tuned model is trained on football-specific annotations for players, goalkeepers, referees, and the ball. This image shows the output produced after applying the football-specific weights.
-
-![Fine-tuned YOLO detection result](assets/video_after_finetuning.png)
-
-The comparison is qualitative: the repository does not currently record a numeric baseline-versus-fine-tuned benchmark in this README.
-
-## Repository Structure
+The current implementation is a single-pass, frame-by-frame object detection pipeline:
 
 ```text
-.
-|-- main.py                              # Placeholder application entry point
-|-- yolo_infernce_before_training.py     # Inference with pretrained YOLOv8x
-|-- yolo_infernce_after_training.py      # Inference with fine-tuned weights
-|-- requirement.txt                       # Python dependency list
-|-- yolov8x.pt                            # Local YOLO weights, when provided
-|-- input_video/
-|   `-- video.mp4                         # Expected input video
-|-- assets/
-|   |-- original-video.png                # Input-video reference image
-|   |-- video_after_normal_yolo.png       # Baseline output reference image
-|   `-- video_after_finetuning.png        # Fine-tuned output reference image
-|-- runs/
-|   `-- detect/predict*/                  # Ultralytics prediction outputs
-`-- training/
-	|-- readme.md                         # Detailed training documentation
-	|-- football_training_yolo_v5_local.ipynb
-	|-- football_training_yolo_v5_colab.ipynb
-	|-- assets/                            # Training metric charts
-	`-- football-players-detection-1/     # Downloaded dataset and labels
+Match video (.mp4)
+        │
+        ▼
+ YOLO model (baseline or fine-tuned)
+        │
+        ▼
+Bounding boxes + class predictions per frame
+        │
+        ▼
+Annotated video written by Ultralytics
 ```
 
-## Requirements
+Two inference scripts allow direct comparison between the baseline and fine-tuned detectors:
 
-- Python 3.8 or newer is recommended.
-- A machine with enough CPU/GPU memory to run the selected YOLO model.
-- CUDA-enabled PyTorch is recommended for practical training and faster inference, but is not required for a basic CPU run.
-- The input video must exist at `input_video/video.mp4`, unless the scripts are edited to use another path.
+| Script | Model | Purpose |
+|---|---|---|
+| `yolo_infernce_before_training.py` | `yolov8x` (COCO-pretrained) | Baseline reference |
+| `yolo_infernce_after_training.py` | Fine-tuned weights (`models/best.pt`) | Football-specific detector |
 
-Install the project dependency with:
+Both scripts read from `input_video/video.mp4` and call Ultralytics with `save=True`, which writes annotated predictions to an auto-generated `runs/detect/predict*` directory.
 
-```bash
-pip install -r requirement.txt
-```
+### 2.2 Training Configuration
 
-The dependency file currently contains `ultralytics`, which installs the YOLO inference and training interface and its required dependencies.
-
-## Running Inference
-
-Run the baseline detector:
-
-```bash
-python yolo_infernce_before_training.py
-```
-
-Run the fine-tuned detector:
-
-```bash
-python yolo_infernce_after_training.py
-```
-
-Before running the fine-tuned script, place the trained weights at:
-
-```text
-models/best.pt
-```
-
-If the input video is missing, either script raises a `FileNotFoundError` and prints the expected path. Each script also prints the first prediction result and its detected bounding boxes to the terminal. The saved annotated video is placed in an Ultralytics prediction directory under `runs/detect/`.
-
-## Training Workflow
-
-The complete training workflow is documented in [`training/readme.md`](training/readme.md) and is available in both local and Google Colab notebooks.
-
-### Dataset
-
-The model is trained with version 1 of Roboflow's [Football Players Detection dataset](https://universe.roboflow.com/roboflow-jvuqo/football-players-detection-3zvbc). The checked-in `data.yaml` defines four classes and the `train`, `valid`, and `test` image splits. The dataset is distributed under the `CC BY 4.0` license; follow the dataset page's attribution requirements when redistributing it.
-
-### Training Configuration
-
-The notebooks install `ultralytics` and `roboflow`, locate the nested dataset split directories, update the dataset paths, and train a `yolov5x` detector using:
+The fine-tuned model is trained with:
 
 ```bash
 yolo task=detect mode=train model=yolov5x.pt data=<dataset-location>/data.yaml epochs=100 imgsz=640
 ```
 
-Training outputs are normally written under `runs/detect/`. The best checkpoint is usually found at `weights/best.pt`; copy it to `models/best.pt` for use by `yolo_infernce_after_training.py`.
+Training is documented in full in [`training/readme.md`](training/readme.md), with both a local notebook (`training/football_training_yolo_v5_local.ipynb`) and a Google Colab notebook (`training/football_training_yolo_v5_colab.ipynb`) for users without local GPU access. The best checkpoint (`weights/best.pt`) is copied to `models/best.pt` for use by the inference script.
 
-For local training, use `training/football_training_yolo_v5_local.ipynb`. For machines without sufficient hardware, use `training/football_training_yolo_v5_colab.ipynb` in Google Colab. The local workflow reads the Roboflow key through an environment file; never commit a real API key.
+### 2.3 Data
 
-## Training Evaluation
+| Purpose | Source | License |
+|---|---|---|
+| Match footage (inference input) | [DFL Bundesliga 460 (Kaggle)](https://www.kaggle.com/datasets/saberghaderi/-dfl-bundesliga-460-mp4-videos-in-30sec-csv) | Per Kaggle dataset terms |
+| Training annotations | [Football Players Detection v1 (Roboflow)](https://universe.roboflow.com/roboflow-jvuqo/football-players-detection-3zvbc) | CC BY 4.0 — attribution required on redistribution |
 
-The charts below are stored in `training/assets/` and summarize the training and validation behavior of the fine-tuned detector.
-
-### Loss and mAP Curves
-
-| Training and Validation Losses | Mean Average Precision (mAP) |
-| --- | --- |
-| ![Training and validation loss curves](training/assets/training_losses.png) | ![Mean average precision curves](training/assets/map_curves.png) |
-
-Loss curves show the error made during training and validation. A generally decreasing trend indicates that the model is learning useful representations. The mAP curves summarize localization and classification quality; higher values indicate more accurate detections.
-
-### Precision, Recall, and Class Performance
-
-| Precision and Recall | Per-Class Performance |
-| --- | --- |
-| ![Precision and recall curves](training/assets/precision_recall.png) | ![Per-class detection performance](training/assets/per_class_performance.png) |
-
-Precision measures how many predicted detections are correct, while recall measures how many annotated objects are found. The per-class chart is particularly useful for checking whether the smaller and harder-to-detect ball performs differently from players, goalkeepers, and referees.
-
-## Dataset Layout
-
-The downloaded dataset is expected to follow this structure:
-
-```text
-football-players-detection-1/
-|-- data.yaml
-`-- football-players-detection-1/
-	|-- train/
-	|   |-- images/
-	|   `-- labels/
-	|-- valid/
-	|   |-- images/
-	|   `-- labels/
-	`-- test/
-		|-- images/
-		`-- labels/
-```
-
-YOLO annotation files contain one object per line using normalized coordinates:
+Annotations follow the standard YOLO format (one object per line, normalized coordinates):
 
 ```text
 class_id center_x center_y width height
 ```
 
-## Troubleshooting
+Expected dataset layout:
 
-- **`Input video not found`:** confirm that the file is named `video.mp4` and is located in `input_video/`.
-- **Fine-tuned weights cannot be loaded:** confirm that `models/best.pt` exists and is a valid Ultralytics checkpoint.
-- **No prediction video appears:** inspect the terminal output for model or codec errors and check the generated `runs/detect/predict*` directory.
-- **CUDA out-of-memory:** run inference on CPU, reduce the model or batch settings, or use Google Colab for training.
-- **Training paths are duplicated:** rerun the dataset path-fixing section in the training notebook so `train`, `val`, and `test` point to the actual image directories.
-- **The ball is still missed:** review the precision/recall and per-class charts, then consider more representative annotations, higher-resolution training, or additional football footage.
+```text
+football-players-detection-1/
+├── data.yaml
+└── football-players-detection-1/
+    ├── train/  {images/, labels/}
+    ├── valid/  {images/, labels/}
+    └── test/   {images/, labels/}
+```
 
-## Limitations and Next Steps
+---
 
-The current repository provides object detection and visual comparison only. It does not yet provide:
+## 3. Results
 
-- persistent object tracking across frames;
-- player identity assignment or team classification;
-- ball trajectory, possession, or tactical statistics;
-- a command-line interface with configurable input and output paths; or
-- an implemented application workflow in `main.py`.
+### 3.1 Qualitative Comparison
 
-These are natural next steps if the project is extended from detection into a complete match-analysis system.
+| Input | Baseline (`yolov8x`) | Fine-tuned (`yolov5x`) |
+|---|---|---|
+| ![Original](assets/original_video.png) | ![Baseline](assets/video_after_normal_yolo.png) | ![Fine-tuned](assets/video_after_finetuning.png) |
 
-## Data Sources and Attribution
+The baseline model detects players consistently but rarely detects the ball. The fine-tuned model, trained on football-specific annotations for all four classes, shows visibly more consistent ball detection in the same footage.
 
-- Match footage: [DFL Bundesliga football videos](https://www.kaggle.com/datasets/saberghaderi/-dfl-bundesliga-460-mp4-videos-in-30sec-csv) on Kaggle.
-- Training dataset: [Football Players Detection](https://universe.roboflow.com/roboflow-jvuqo/football-players-detection-3zvbc) on Roboflow, version 1, licensed under CC BY 4.0.
+> **Note:** this comparison is currently qualitative only. A numeric baseline-vs-fine-tuned benchmark (e.g., per-class AP, ball-specific recall) is a planned addition — see [Limitations](#5-limitations-and-future-work).
+
+### 3.2 Training Diagnostics
+
+| Loss Curves | Mean Average Precision (mAP) |
+|---|---|
+| ![Loss](training/assets/training_losses.png) | ![mAP](training/assets/map_curves.png) |
+
+| Precision / Recall | Per-Class Performance |
+|---|---|
+| ![PR](training/assets/precision_recall.png) | ![Per-class](training/assets/per_class_performance.png) |
+
+The per-class breakdown is the most diagnostically useful chart in this project: it isolates whether the ball — the hardest class — is converging at a different rate than the larger, easier classes (player, goalkeeper, referee).
+
+---
+
+## 4. Repository Structure
+
+```text
+.
+├── main.py                              # Placeholder application entry point
+├── yolo_infernce_before_training.py     # Baseline inference (yolov8x)
+├── yolo_infernce_after_training.py      # Fine-tuned inference
+├── requirement.txt                      # Python dependencies
+├── yolov8x.pt                           # Baseline weights (when provided)
+├── input_video/
+│   └── video.mp4                        # Expected input video
+├── assets/                              # README reference images
+├── runs/detect/predict*/                # Ultralytics prediction outputs
+└── training/
+    ├── readme.md                        # Full training documentation
+    ├── football_training_yolo_v5_local.ipynb
+    ├── football_training_yolo_v5_colab.ipynb
+    ├── assets/                          # Training metric charts
+    └── football-players-detection-1/   # Dataset (downloaded)
+```
+
+---
+
+## 5. Getting Started
+
+### Requirements
+
+- Python 3.8+
+- CUDA-enabled PyTorch recommended for training and fast inference (CPU inference is supported but slower)
+- Input video present at `input_video/video.mp4`
+
+### Installation
+
+```bash
+pip install -r requirement.txt
+```
+
+### Running Inference
+
+```bash
+# Baseline detector
+python yolo_infernce_before_training.py
+
+# Fine-tuned detector (requires models/best.pt)
+python yolo_infernce_after_training.py
+```
+
+Each script prints the first prediction result and its bounding boxes to the terminal, and writes the annotated video under `runs/detect/`.
+
+### Troubleshooting
+
+| Issue | Resolution |
+|---|---|
+| `Input video not found` | Confirm `input_video/video.mp4` exists |
+| Fine-tuned weights fail to load | Confirm `models/best.pt` exists and is a valid Ultralytics checkpoint |
+| No prediction video produced | Check terminal for codec/model errors; inspect `runs/detect/predict*/` |
+| CUDA out-of-memory | Run on CPU, reduce batch/model size, or train via Colab |
+| Duplicated training paths | Rerun the dataset path-fixing cell in the training notebook |
+| Ball still missed after fine-tuning | Review per-class precision/recall; consider higher-resolution footage or additional annotated frames |
+
+---
+
+## 6. Limitations and Future Work
+
+The project currently addresses **detection only**, on a single-video, single-pass basis. It does not yet implement:
+
+- Persistent multi-frame object tracking (e.g., ByteTrack/DeepSORT) for consistent player identities across frames
+- Team classification (e.g., via jersey color clustering)
+- Ball possession, trajectory reconstruction, or tactical/statistical outputs
+- A quantitative baseline-vs-fine-tuned benchmark (per-class AP/recall table)
+- A configurable command-line interface (input/output paths, model selection)
+- A complete application entry point (`main.py` is currently a placeholder)
+
+These form a natural roadmap: detection → tracking → identity/team assignment → tactical and statistical analysis.
+
+---
+
+## 7. Data Sources and Attribution
+
+- Match footage: [DFL Bundesliga 460 — Kaggle](https://www.kaggle.com/datasets/saberghaderi/-dfl-bundesliga-460-mp4-videos-in-30sec-csv)
+- Training annotations: [Football Players Detection v1 — Roboflow](https://universe.roboflow.com/roboflow-jvuqo/football-players-detection-3zvbc), CC BY 4.0
+
+If you reuse or redistribute the Roboflow dataset, retain attribution per its license terms.
+
+---
+
+## License
+
+This project's code is released under the [MIT License](LICENSE).
+
+Note that the training dataset ([Football Players Detection v1](https://universe.roboflow.com/roboflow-jvuqo/football-players-detection-3zvbc)) is licensed separately under **CC BY 4.0** and retains its own attribution requirements independent of this repository's license.
