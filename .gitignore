@@ -9,3 +9,14 @@ __pycache__/
 
 # VS Code settings
 .vscode/
+
+# YOLO generated outputs
+runs/
+
+# Model weights
+*.pt
+*.pth
+
+# Python
+__pycache__/
+*.pyc
