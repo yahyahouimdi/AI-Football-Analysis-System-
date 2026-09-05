@@ -29,15 +29,25 @@ yolo task=detect mode=train model=yolov5x.pt data=<dataset-location>/data.yaml e
 
 Training results are normally written by Ultralytics under a `runs/detect/` directory. Keep the best trained weights, usually `weights/best.pt`, and use that file for inference in the main project.
 
-## Training Results
+## Evaluation Results
 
-| Losses | mAP |
-| --- | --- |
-| ![Training losses](assets/training_losses.png) | ![mAP curves](assets/map_curves.png) |
+The following charts summarize the detector's training and validation performance. They should be reviewed together: loss curves show whether the model is learning consistently, while the detection metrics show how accurately it identifies and localizes objects in previously unseen images.
 
-| Precision/Recall | Per-Class Performance |
+### Training and mAP Curves
+
+| Training and Validation Losses | Mean Average Precision (mAP) |
 | --- | --- |
-| ![Precision and recall](assets/precision_recall.png) | ![Per-class performance](assets/per_class_performance.png) |
+| ![Training and validation loss curves](assets/training_losses.png) | ![Mean average precision curves](assets/map_curves.png) |
+
+The loss curves track the error made during training and validation. A downward trend generally indicates that the model is learning useful object and bounding-box representations. The mAP curves summarize detection quality across confidence thresholds and IoU thresholds; higher values indicate more accurate and complete detections.
+
+### Precision, Recall, and Class Performance
+
+| Precision and Recall | Per-Class Performance |
+| --- | --- |
+| ![Precision and recall curves](assets/precision_recall.png) | ![Per-class detection performance](assets/per_class_performance.png) |
+
+Precision measures how many predicted detections are correct, while recall measures how many of the objects present in an image are found. These metrics are especially important for this project because the ball is substantially smaller than players, goalkeepers, and referees. The per-class chart provides a class-by-class view of detection quality and helps identify categories that may require additional training data or tuning.
 
 ## Dataset Classes
 
