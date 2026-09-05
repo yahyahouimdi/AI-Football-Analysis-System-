@@ -29,6 +29,16 @@ yolo task=detect mode=train model=yolov5x.pt data=<dataset-location>/data.yaml e
 
 Training results are normally written by Ultralytics under a `runs/detect/` directory. Keep the best trained weights, usually `weights/best.pt`, and use that file for inference in the main project.
 
+## Training Results
+
+| Losses | mAP |
+| --- | --- |
+| ![Training losses](assets/training_losses.png) | ![mAP curves](assets/map_curves.png) |
+
+| Precision/Recall | Per-Class Performance |
+| --- | --- |
+| ![Precision and recall](assets/precision_recall.png) | ![Per-class performance](assets/per_class_performance.png) |
+
 ## Dataset Classes
 
 The model is trained to detect four classes:
